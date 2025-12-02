@@ -92,9 +92,10 @@ class NoteViewModel(application: Application): ViewModel() {
                     repository.update(Note(
                         id = currentId,
                         text = text.value.text,
-                        update = Date()))
+                        update = Date(),
+                        imagePath = null))
                 } else {
-                    repository.insert(Note(text = text.value.text, update = Date()))
+                    repository.insert(Note(text = text.value.text, update = Date(), imagePath = null))
                 }
 
                 openDialog = false
