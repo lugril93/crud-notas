@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.ebc.crud_notes.db.NotesDatabase
 import com.ebc.crud_notes.db.models.Note
 import com.ebc.crud_notes.repository.NotesRepository
+import com.ebc.crud_notes.states.ImagePathState
 import com.ebc.crud_notes.states.TextFieldState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +30,9 @@ class NoteViewModel(application: Application): ViewModel() {
 
     private val _text = mutableStateOf(TextFieldState())
     val text: State<TextFieldState> =_text
+
+    private val _imagePath = mutableStateOf(ImagePathState())
+    val imagePath: State <ImagePathState> = _imagePath
 
     //TODO: Pendiente resto de los formularios
 
@@ -52,12 +56,17 @@ class NoteViewModel(application: Application): ViewModel() {
                     note ->
                         currentId = note.id
                         _text.value = text.value.copy(text = note.text)
-                    //TODO: traerse nuevos campos
+                    _imagePath.value = imagePath.value.copy(
+                        path = note.imagePath
+                    )
                 }
             } else {
                 currentId = null
                 _text.value = text.value.copy(
                     text = "Escribe aqui el texto"
+                )
+                _imagePath.value = imagePath.value.copy(
+                    path = null
                 )
             }
         }
@@ -93,7 +102,7 @@ class NoteViewModel(application: Application): ViewModel() {
                         id = currentId,
                         text = text.value.text,
                         update = Date(),
-                        imagePath = null))
+                        imagePath = imagePath.value.path))
                 } else {
                     repository.insert(Note(text = text.value.text, update = Date(), imagePath = null))
                 }
@@ -104,8 +113,12 @@ class NoteViewModel(application: Application): ViewModel() {
                     _eventFlow.emit(Event.Save)
                 }
             }
+            is Event.SetImagePath -> {
+                _imagePath.value = imagePath.value.copy(
+                    path = event.imagePath
+                )
+            }
 
-            //TODO: Me falta agregar posibles campos
         }
     }
 
