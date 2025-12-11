@@ -10,6 +10,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ebc.crud_notes.db.NotesDatabase
 import com.ebc.crud_notes.db.models.Note
+import com.ebc.crud_notes.network.ApiClient
 import com.ebc.crud_notes.repository.NotesRepository
 import com.ebc.crud_notes.states.ImagePathState
 import com.ebc.crud_notes.states.TextFieldState
@@ -18,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Date
 
 class NoteViewModel(application: Application): ViewModel() {
@@ -41,6 +43,8 @@ class NoteViewModel(application: Application): ViewModel() {
     var openDialog by mutableStateOf(false)
 
     private var currentId: Int? = null
+
+    private val apiRest = ApiClient.geetQuoteApi
 
         init {
             val db = NotesDatabase.getInstance(application)
@@ -119,7 +123,26 @@ class NoteViewModel(application: Application): ViewModel() {
                 )
             }
 
+            is Event.FireQuote -> {
+                coroutineScope.launch(Dispatchers.IO) {
+                    val quote = fetchRandomQuote()
+                    _eventFlow.emit(Event.FireQuote(quote))
+                }
+            }
         }
+    }
+
+    private suspend fun fetchRandomQuote(): String{
+        val response = withContext(Dispatchers.IO){
+            try {
+                apiRest.getRandomQuote()
+            } catch (error: Exception) {
+                error.printStackTrace()
+                "Error al obtener la frase"
+            }
+        }
+
+        return response
     }
 
 

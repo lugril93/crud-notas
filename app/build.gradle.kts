@@ -43,6 +43,7 @@ android {
 val navVersion = "2.5.3"
 val roomVersion = "2.6.1"
 val runtimeLivedataVersion = "1.2.1"
+val retrofit = "2.9.0"
 
 
 dependencies {
@@ -78,4 +79,9 @@ dependencies {
 
     // Room compiler con kapt (Kotlin)
     kapt("androidx.room:room-compiler:$roomVersion")
+
+    // Retrofit core
+    implementation("com.squareup.retrofit2:retrofit:${retrofit}")
+// Para que pueda mapear directamente Strings (tu frase geek)
+    implementation("com.squareup.retrofit2:converter-scalars:${retrofit}")
 }
