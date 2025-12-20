@@ -18,4 +18,6 @@ sealed class Event {
     data class SetImagePath(val imagePath: String?) : Event()
 
     data class FireQuote(val quote: String?): Event()
+
+    data class FetchDollar(val result: String?): Event()
 }

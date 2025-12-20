@@ -14,6 +14,7 @@ import com.ebc.crud_notes.network.ApiClient
 import com.ebc.crud_notes.repository.NotesRepository
 import com.ebc.crud_notes.states.ImagePathState
 import com.ebc.crud_notes.states.TextFieldState
+import com.google.gson.internal.GsonBuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -21,9 +22,13 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Date
+import com.ebc.crud_notes.BuildConfig
+
 
 class NoteViewModel(application: Application): ViewModel() {
     private val repository: NotesRepository
+
+    private val banxicoApi = ApiClient.banxicoApi
 
     private val coroutineScope = CoroutineScope(Dispatchers.Main)
 
@@ -108,7 +113,7 @@ class NoteViewModel(application: Application): ViewModel() {
                         update = Date(),
                         imagePath = imagePath.value.path))
                 } else {
-                    repository.insert(Note(text = text.value.text, update = Date(), imagePath = null))
+                    repository.insert(Note(text = text.value.text, update = Date(), imagePath = imagePath.value.path))
                 }
 
                 openDialog = false
@@ -129,6 +134,13 @@ class NoteViewModel(application: Application): ViewModel() {
                     _eventFlow.emit(Event.FireQuote(quote))
                 }
             }
+
+            is Event.FetchDollar -> {
+                coroutineScope.launch(Dispatchers.IO) {
+                    val result = fetchDollarFix()
+                    _eventFlow.emit(Event.FetchDollar(result))
+                }
+            }
         }
     }
 
@@ -144,6 +156,29 @@ class NoteViewModel(application: Application): ViewModel() {
 
         return response
     }
+
+    private suspend fun fetchDollarFix(): String {
+        return try {
+            val token = BuildConfig.BANXICO_TOKEN
+
+            val response = banxicoApi.getDatoOportuno(
+                idSerie = "SF43718",
+                token = token
+            )
+
+            val dato = response.bmx.series.firstOrNull()?.datos?.firstOrNull()
+
+            if (dato == null) {
+                "No se encontró el dato del tipo de cambio."
+            } else {
+                "Dólar FIX: ${dato.dato} MXN (fecha: ${dato.fecha})"
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            "Error al consultar a Banxico."
+        }
+    }
+
 
 
 }

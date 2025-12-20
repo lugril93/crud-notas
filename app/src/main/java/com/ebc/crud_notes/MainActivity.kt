@@ -225,6 +225,19 @@ fun CrudScreen (
             Text(text= "Frase Geek motivacional")
         }
 
+        Button(
+            onClick = {onEvent(Event.FetchDollar(null))
+            },
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Info,
+                contentDescription = "Dólar hoy"
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(text = "Tipo de cambio dólar")
+        }
+
         LazyColumn {
             items(allNotes){
                 note ->
@@ -295,6 +308,14 @@ fun CrudScreenSetup(
                     scope.launch {
                         snackbarHostState.showSnackbar(
                             event.quote?: ""
+                        )
+                    }
+                }
+
+                is Event.FetchDollar -> {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            event.result?:""
                         )
                     }
                 }

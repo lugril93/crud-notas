@@ -1,3 +1,5 @@
+
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -17,6 +19,10 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        val banxicoToken = (project.findProperty("BANXICO_TOKEN") as String?) ?: ""
+        buildConfigField("String", "BANXICO_TOKEN", "\"$banxicoToken\"")
+
+
     }
 
     buildTypes {
@@ -37,6 +43,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -84,4 +91,6 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:${retrofit}")
 // Para que pueda mapear directamente Strings (tu frase geek)
     implementation("com.squareup.retrofit2:converter-scalars:${retrofit}")
+
+    implementation("com.squareup.retrofit2:converter-gson:${retrofit}")
 }
