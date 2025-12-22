@@ -72,7 +72,7 @@ class NoteViewModel(application: Application): ViewModel() {
             } else {
                 currentId = null
                 _text.value = text.value.copy(
-                    text = "Escribe aqui el texto"
+                    text = ""
                 )
                 _imagePath.value = imagePath.value.copy(
                     path = null
@@ -93,8 +93,9 @@ class NoteViewModel(application: Application): ViewModel() {
                 openDialog = false
             }
             is Event.Delete -> {
-                event.id?.let {
-                    repository.delete(it)
+                coroutineScope.launch(Dispatchers.IO) {
+                event.id?.let {repository.delete(it)}
+                    _eventFlow.emit(Event.ShowSnackBar("Nota eliminada"))
                 }
             }
             is Event.Load -> {
@@ -140,7 +141,7 @@ class NoteViewModel(application: Application): ViewModel() {
                     val result = fetchDollarFix()
                     _eventFlow.emit(Event.FetchDollar(result))
                 }
-            }
+            } else -> Unit
         }
     }
 
@@ -171,7 +172,7 @@ class NoteViewModel(application: Application): ViewModel() {
             if (dato == null) {
                 "No se encontró el dato del tipo de cambio."
             } else {
-                "Dólar FIX: ${dato.dato} MXN (fecha: ${dato.fecha})"
+                "Así está el dolar el ${dato.fecha}: ${dato.dato} MXN"
             }
         } catch (e: Exception) {
             e.printStackTrace()

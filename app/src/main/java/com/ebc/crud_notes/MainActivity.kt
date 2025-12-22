@@ -13,7 +13,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -66,7 +65,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ebc.crud_notes.utils.saveImageToInternalStorage
@@ -77,19 +75,40 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.logging.SimpleFormatter
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material.icons.rounded.AttachMoney
+import androidx.compose.material3.Switch
+import androidx.compose.runtime.saveable.rememberSaveable
+
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        createNotificationChannel(this)
         enableEdgeToEdge()
         setContent {
-            CrudnotesTheme {
+            var darkMode by rememberSaveable { mutableStateOf(false) }
+            CrudnotesTheme(darkTheme = darkMode) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Crud()
+                    Crud(
+                        darkMode = darkMode,
+                        onToggleDarkMode = { darkMode = !darkMode}
+                    )
                 }
             }
         }
@@ -204,13 +223,31 @@ fun CrudScreen (
     openDialog: Boolean = false,
     text: String ="",
     imagePath: String? = null,
-    onEvent: (Event) -> Unit = {}
+    onEvent: (Event) -> Unit = {},
+    darkMode: Boolean = false,
+    onToggleDarkMode: () -> Unit = {}
 ) {
     val localeEsp = Locale("es","MX")
     val formatter = SimpleDateFormat("dd/MMM/yy hh:mm a", localeEsp)
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var noteIdToDelete by remember { mutableStateOf<Int?>(null) }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(20.dp)
     ){
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (darkMode) "Modo oscuro" else "Modo claro",
+                modifier = Modifier.weight(1f)
+            )
+            Switch(
+                checked = darkMode,
+                onCheckedChange = { onToggleDarkMode() }
+            )
+        }
         Button(
             onClick = {
                 onEvent(Event.FireQuote(null))
@@ -228,10 +265,14 @@ fun CrudScreen (
         Button(
             onClick = {onEvent(Event.FetchDollar(null))
             },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF2E7D32),
+                contentColor = Color.White
+            ),
             modifier = Modifier.align(Alignment.CenterHorizontally)
         ) {
             Icon(
-                imageVector = Icons.Rounded.Info,
+                imageVector = Icons.Rounded.AttachMoney,
                 contentDescription = "Dólar hoy"
             )
             Spacer(modifier = Modifier.width(10.dp))
@@ -246,7 +287,10 @@ fun CrudScreen (
                     supportingContent = { Text(formatter.format(note.update))},
                     trailingContent = {
                         IconButton(
-                            onClick = {onEvent(Event.Delete(note.id))}
+                            onClick = {
+                                noteIdToDelete = note.id
+                                showDeleteDialog = true
+                            }
                         ) {
                             Icon(Icons.Rounded.Delete, contentDescription = "Borrar nota: ${note.id}")
                         }
@@ -265,6 +309,33 @@ fun CrudScreen (
         }
     }
 
+    if (showDeleteDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = {
+                showDeleteDialog = false
+                noteIdToDelete = null
+            },
+            title = { Text("Eliminar nota") },
+            text = { Text("¿Seguro que deseas eliminar esta nota?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        noteIdToDelete?.let { onEvent(Event.Delete(it)) }
+                        showDeleteDialog = false
+                        noteIdToDelete = null
+                    }
+                ) { Text("Eliminar") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        noteIdToDelete = null
+                    }
+                ) { Text("Cancelar") }
+            }
+        )
+    }
     NoteDialog(openDialog = openDialog, text = text, imagePath = imagePath, onEvent = onEvent)
 }
 
@@ -272,9 +343,34 @@ fun CrudScreen (
 
 @Composable
 fun CrudScreenSetup(
-    viewModel: NoteViewModel
+    viewModel: NoteViewModel,
+    darkMode: Boolean,
+    onToggleDarkMode: () -> Unit
 ){
     val allNotes by viewModel.all.observeAsState(listOf())
+    val context = LocalContext.current
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { /* no necesitas manejar nada */ }
+    )
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (!granted) {
+                notificationPermissionLauncher.launch(
+                    Manifest.permission.POST_NOTIFICATIONS
+                )
+            }
+        }
+    }
+
+
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -289,11 +385,11 @@ fun CrudScreenSetup(
                 is Event.Load -> TODO()
                 Event.OpenDialog -> TODO()
                 Event.Save -> {
+                    val msg = "Se ha guardado una nota"
                     scope.launch {
-                        snackbarHostState.showSnackbar(
-                            "Nota guardada"
-                        )
+                        snackbarHostState.showSnackbar(msg)
                     }
+                    showSavedNotification(context,msg)
                 }
                 is Event.SetText -> TODO()
                 is Event.SetImagePath -> {
@@ -313,10 +409,17 @@ fun CrudScreenSetup(
                 }
 
                 is Event.FetchDollar -> {
+                    val msg = event.result ?: "No se pudo obtener el tipo de cambio"
                     scope.launch {
                         snackbarHostState.showSnackbar(
                             event.result?:""
                         )
+                    }
+                    showDollarNotification(context,msg)
+                }
+                is Event.ShowSnackBar -> {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(event.message)
                     }
                 }
             }
@@ -342,13 +445,18 @@ fun CrudScreenSetup(
             openDialog = viewModel.openDialog,
             text = viewModel.text.value.text,
             imagePath = viewModel.imagePath.value.path,
-            onEvent = {viewModel.onEvent(it)}
+            onEvent = {viewModel.onEvent(it)},
+            darkMode = darkMode,
+            onToggleDarkMode = onToggleDarkMode
         )
     }
 }
 
 @Composable
-fun Crud() {
+fun Crud(
+    darkMode: Boolean,
+    onToggleDarkMode: () -> Unit
+) {
     val owner = LocalViewModelStoreOwner.current
 
     owner?.let {
@@ -360,7 +468,11 @@ fun Crud() {
             )
         )
 
-        CrudScreenSetup(viewModel)
+        CrudScreenSetup(
+            viewModel = viewModel,
+            darkMode = darkMode,
+            onToggleDarkMode = onToggleDarkMode
+        )
     }
 }
 
@@ -377,5 +489,58 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
     Text(
         text = "Hello $name!",
         modifier = modifier
+    )
+}
+
+private const val NOTES_CHANNEL_ID = "notes_channel"
+fun createNotificationChannel(context: Context){
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
+        val channel = NotificationChannel(
+            NOTES_CHANNEL_ID,
+            "Notas",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Notificaciones de guardado de notas"
+        }
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.createNotificationChannel(channel)
+
+    }
+}
+
+fun showSavedNotification(context: Context, message: String){
+    val notification = NotificationCompat.Builder(context, NOTES_CHANNEL_ID)
+        .setSmallIcon(R.drawable.noti)
+        .setContentTitle("Nota Guardada")
+        .setContentText(message)
+        .setPriority(NotificationCompat.PRIORITY_MAX)
+        .setAutoCancel(true)
+        .build()
+
+    val manager = ContextCompat.getSystemService(context, NotificationManager::class.java)
+    manager?.notify((System.currentTimeMillis() % 100000).toInt(), notification)
+}
+
+fun showDollarNotification(context: Context, result: String) {
+    val notification = NotificationCompat.Builder(context, NOTES_CHANNEL_ID)
+        .setSmallIcon(R.drawable.noti)
+        .setContentTitle("Se consultó el dólar hoy")
+        .setContentText(result)
+        .setStyle(
+            NotificationCompat.BigTextStyle().bigText(result)
+        )
+        .setPriority(NotificationCompat.PRIORITY_MAX)
+        .setAutoCancel(true)
+        .build()
+
+    val manager = ContextCompat.getSystemService(
+        context,
+        NotificationManager::class.java
+    )
+
+    manager?.notify(
+        (System.currentTimeMillis() % 100000).toInt(),
+        notification
     )
 }

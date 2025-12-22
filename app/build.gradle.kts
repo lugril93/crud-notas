@@ -93,4 +93,6 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-scalars:${retrofit}")
 
     implementation("com.squareup.retrofit2:converter-gson:${retrofit}")
+    implementation("androidx.compose.material:material-icons-extended")
+
 }

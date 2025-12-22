@@ -20,4 +20,6 @@ sealed class Event {
     data class FireQuote(val quote: String?): Event()
 
     data class FetchDollar(val result: String?): Event()
+
+    data class ShowSnackBar(val message: String): Event()
 }
